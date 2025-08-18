@@ -24,6 +24,7 @@ import { Chat } from '../../types';
 import { APP_CONSTANTS, SUCCESS_MESSAGES } from '../../constants';
 
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { logout } from '../../store/slices/authSlice';
 import { RootStackParamList } from '../../types';
@@ -78,7 +79,12 @@ const ChatHistoryScreen: React.FC<ChatHistoryScreenProps> = ({
   };
 
   const handleChatPress = (chat: Chat) => {
-    navigation.navigate('Chat', { chatId: chat.id });
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Chat', params: { chatId: chat.id } }],
+      }),
+    );
   };
 
   const handleDeleteChat = (chatId: string, chatTitle: string) => {

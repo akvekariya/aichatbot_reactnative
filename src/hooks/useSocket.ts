@@ -10,7 +10,12 @@ import {
   setMessages,
 } from '../store/slices/chatSlice';
 import { setError } from '../store/slices/uiSlice';
-import { SocketMessage, SocketTyping, UseSocketReturn } from '../types';
+import {
+  Message,
+  SocketMessage,
+  SocketTyping,
+  UseSocketReturn,
+} from '../types';
 
 export const useSocket = (): UseSocketReturn => {
   const dispatch = useDispatch();
@@ -34,6 +39,9 @@ export const useSocket = (): UseSocketReturn => {
       },
     });
 
+    // Remove any existing listeners to prevent duplicates
+    socketRef.current.removeAllListeners();
+
     // Connection events
     socketRef.current.on(SOCKET_EVENTS.CONNECT, () => {
       console.log('Socket connected:', socketRef.current?.id);
@@ -56,12 +64,23 @@ export const useSocket = (): UseSocketReturn => {
 
     // Chat events
     socketRef.current.on(SOCKET_EVENTS.MESSAGE, data => {
-      console.log('New message received:', data);
-      dispatch(addMessage(data.message));
+      console.log('New message received:', {
+        messageId: data.message?.messageId,
+        sender: data.message?.sender,
+        text: data.message?.text?.substring(0, 50) + '...',
+        timestamp: data.message?.timestamp,
+      });
 
-      // Stop AI thinking indicator when AI responds
-      if (data.message.sender === 'ai') {
-        dispatch(setAiThinking(false));
+      // Validate message data before dispatching
+      if (data.message && data.message.messageId && data.message.text) {
+        dispatch(addMessage(data.message));
+
+        // Stop AI thinking indicator when AI responds
+        if (data.message.sender === 'ai') {
+          dispatch(setAiThinking(false));
+        }
+      } else {
+        console.warn('Invalid message data received:', data);
       }
     });
 
@@ -123,11 +142,31 @@ export const useSocket = (): UseSocketReturn => {
     }
   }, []);
 
-  const sendMessage = useCallback((message: SocketMessage) => {
-    if (socketRef.current?.connected) {
-      socketRef.current.emit(SOCKET_EVENTS.MESSAGE, message);
-    }
-  }, []);
+  const sendMessage = useCallback(
+    (message: SocketMessage) => {
+      if (socketRef.current?.connected) {
+        // Immediately add user message to the chat
+        const userMessage: Message = {
+          messageId: `user_${Date.now()}_${Math.random()
+            .toString(36)
+            .substr(2, 9)}`,
+          text: message.text,
+          sender: 'user',
+          timestamp: new Date().toISOString(),
+        };
+
+        // Add user message to Redux store immediately
+        dispatch(addMessage(userMessage));
+
+        // Show AI thinking indicator
+        dispatch(setAiThinking(true));
+
+        // Send message to server
+        socketRef.current.emit(SOCKET_EVENTS.MESSAGE, message);
+      }
+    },
+    [dispatch],
+  );
 
   const sendTyping = useCallback((typing: SocketTyping) => {
     if (socketRef.current?.connected) {

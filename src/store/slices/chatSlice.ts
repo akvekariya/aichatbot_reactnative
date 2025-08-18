@@ -101,9 +101,21 @@ const chatSlice = createSlice({
     },
     addMessage: (state, action: PayloadAction<Message>) => {
       if (state.currentChat) {
-        state.currentChat.messages.push(action.payload);
-        state.currentChat.messageCount += 1;
-        state.currentChat.lastMessageAt = action.payload.timestamp;
+        // Check for duplicate messages by messageId
+        const existingMessage = state.currentChat.messages.find(
+          msg => msg.messageId === action.payload.messageId,
+        );
+
+        if (!existingMessage) {
+          state.currentChat.messages.push(action.payload);
+          state.currentChat.messageCount += 1;
+          state.currentChat.lastMessageAt = action.payload.timestamp;
+        } else {
+          console.log(
+            'Duplicate message detected, skipping:',
+            action.payload.messageId,
+          );
+        }
       }
     },
     setMessages: (state, action: PayloadAction<Message[]>) => {
