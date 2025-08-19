@@ -36,6 +36,7 @@ export interface GoogleAuthResponse {
     token: string;
     user: User;
     expiresIn: string;
+    profile: Profile;
   };
 }
 
