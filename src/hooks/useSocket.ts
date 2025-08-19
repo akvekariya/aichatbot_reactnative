@@ -130,7 +130,6 @@ export const useSocket = (): UseSocketReturn => {
   }, [isAuthenticated, token, connect, disconnect]);
 
   const joinChat = useCallback((chatId: string) => {
-    console.log('🚀 ~ useSocket ~ chatId:', chatId);
     if (socketRef.current?.connected) {
       socketRef.current.emit(SOCKET_EVENTS.JOIN_CHAT, { chatId });
     }

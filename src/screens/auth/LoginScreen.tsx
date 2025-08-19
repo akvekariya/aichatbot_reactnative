@@ -62,7 +62,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             style: 'cancel',
           },
           {
-            text: 'Logout',
+            text: 'Yes',
             style: 'destructive',
             onPress: () => {
               testLogin();

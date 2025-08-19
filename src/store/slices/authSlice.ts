@@ -19,6 +19,7 @@ export const loginWithGoogle = createAsyncThunk(
   async (idToken: string, { rejectWithValue }) => {
     try {
       const response = await authService.loginWithGoogle(idToken);
+
       await AsyncStorage.setItem(
         STORAGE_KEYS.JWT_TOKEN,
         response.data.data.token,
@@ -136,6 +137,7 @@ const authSlice = createSlice({
       .addCase(loginWithGoogle.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
+        state.profile = action.payload.data?.profile;
         state.user = action.payload.data.user;
         state.token = action.payload.data.token;
         state.error = null;

@@ -10,11 +10,15 @@ import {
 
 import { useDispatch, useSelector } from 'react-redux';
 import { Button } from '../../components';
-import { ProfileForm, TopicsSection } from '../../components/profile';
+import {
+  ProfileForm,
+  TopicsSection,
+  UserProfileCard,
+} from '../../components/profile';
 import { APP_CONSTANTS, SUCCESS_MESSAGES } from '../../constants';
 import { useForm, useTheme } from '../../hooks';
 import { AppDispatch, RootState } from '../../store';
-import { createProfile } from '../../store/slices/authSlice';
+import { createProfile, updateProfile } from '../../store/slices/authSlice';
 import { setSuccess } from '../../store/slices/uiSlice';
 import { validateAge, validateName } from '../../utils';
 
@@ -36,14 +40,15 @@ const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({
   const dispatch = useDispatch<AppDispatch>();
   const { colors, typography } = useTheme();
 
-  const { profile, isLoading, error } = useSelector(
+  const { user, profile, isLoading, error } = useSelector(
     (state: RootState) => state.auth,
   );
+
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
 
   const { values, errors, setValue, validateForm } = useForm(
     {
-      name: '',
+      name: user?.name || '',
       age: '',
       additionalInfo: '',
     },
@@ -69,12 +74,17 @@ const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({
     },
   );
 
+  // Note: We removed the automatic redirect to Chat when profile exists
+  // This allows users to edit their profile if they navigate back to this screen
+
+  // Pre-fill form with existing profile data if available
   useEffect(() => {
-    if (profile) {
-      // If profile already exists, navigate to main app
-      navigation.replace('Chat', {});
+    if (profile && !values.name) {
+      setValue('name', profile.name);
+      setValue('age', profile.age.toString());
+      setValue('additionalInfo', profile.additionalInfo || '');
     }
-  }, [profile, navigation]);
+  }, [profile, setValue, values.name]);
 
   useEffect(() => {
     if (error) {
@@ -116,14 +126,26 @@ const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({
         additionalInfo: values.additionalInfo.trim() || undefined,
       };
 
-      const result = await dispatch(createProfile(profileData));
+      const result = profile
+        ? await dispatch(updateProfile(profileData))
+        : await dispatch(createProfile(profileData));
 
-      if (createProfile.fulfilled.match(result)) {
-        dispatch(setSuccess(SUCCESS_MESSAGES.PROFILE_CREATED));
+      if (
+        profile
+          ? updateProfile.fulfilled.match(result)
+          : createProfile.fulfilled.match(result)
+      ) {
+        dispatch(
+          setSuccess(
+            profile
+              ? 'Profile updated successfully!'
+              : SUCCESS_MESSAGES.PROFILE_CREATED,
+          ),
+        );
         navigation.replace('Chat', {});
       }
     } catch (error) {
-      console.error('Profile creation error:', error);
+      console.error('Profile operation error:', error);
     }
   };
 
@@ -142,6 +164,34 @@ const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({
     },
   ];
 
+  // If no user data, something went wrong with authentication
+  if (!user) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <View style={[styles.content, styles.errorContainer]}>
+          <Text
+            style={[
+              styles.errorText,
+              { color: colors.error, ...typography.h3 },
+            ]}
+          >
+            Authentication Error
+          </Text>
+          <Text
+            style={[
+              styles.errorSubtext,
+              { color: colors.textSecondary, ...typography.body1 },
+            ]}
+          >
+            Unable to load user information. Please try logging in again.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -151,12 +201,15 @@ const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
+          {/* User Profile Card */}
+          <UserProfileCard user={user} showTitle={true} />
+
           {/* Header */}
           <View style={styles.header}>
             <Text
               style={[styles.title, { color: colors.text, ...typography.h2 }]}
             >
-              Complete Your Profile
+              {profile ? 'Update Your Profile' : 'Complete Your Profile'}
             </Text>
             <Text
               style={[
@@ -164,7 +217,9 @@ const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({
                 { color: colors.textSecondary, ...typography.body1 },
               ]}
             >
-              Tell us a bit about yourself to personalize your experience
+              {profile
+                ? 'Update your information to personalize your experience'
+                : 'Tell us a bit about yourself to personalize your experience'}
             </Text>
           </View>
 
@@ -187,7 +242,7 @@ const ProfileSetupScreen: React.FC<ProfileSetupScreenProps> = ({
           {/* Submit Button */}
           <View style={styles.submitContainer}>
             <Button
-              title="Complete Setup"
+              title={profile ? 'Update Profile' : 'Complete Setup'}
               onPress={handleSubmit}
               variant="primary"
               size="large"
@@ -223,6 +278,19 @@ const styles = StyleSheet.create({
   },
   submitContainer: {
     marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });
 
